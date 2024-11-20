@@ -1,0 +1,32 @@
+---
+- name: Configure Cisco device with NETCONF/YANG and telemetry
+  hosts: cisco
+  gather_facts: false
+  tasks:
+    - name: Get IP of Cisco     ## Gather IP Address of Cisco
+      set_fact:
+        source: "{{ lookup('community.general.dig', 'cisco') }}"
+
+    - name: Show IP address of the Cisco device
+      debug:
+        msg: "{{ source }}"
+
+    - name: Get IP of Telegraf   ## Gather IP Address of Collector
+      set_fact:
+        telegraf_node: "{{ lookup('community.general.dig', 'control') }}"
+
+    - name: Show IP address of Telegraf
+      debug:
+        msg: "{{ telegraf_node }}"
+
+    - name: Configure Telemetry   ## Apply configuration to cisco
+      cisco.ios.ios_config:
+        lines:
+          - "netconf-yang"
+          - "telemetry ietf subscription 2"
+          - "encoding encode-kvgpb"
+          - "filter xpath /ios-events-ios-xe-oper:interface-state-change"
+          - "source-address {{ source }}"
+          - "stream yang-notif-native"
+          - "update-policy on-change"
+          - "receiver ip address {{ telegraf_node }} 57000 protocol grpc-tcp"
